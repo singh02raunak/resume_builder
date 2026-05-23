@@ -3,8 +3,6 @@ import { Navbar } from '../components/layout/Navbar'
 import { Button } from '../components/ui/Button'
 import { FileText, Zap, Target, Star, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
-import toast from 'react-hot-toast'
 
 const features = [
   {
@@ -64,12 +62,10 @@ export default function Landing() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  async function handlePlanSelect(planKey) {
-    if (planKey === 'free') { navigate('/signup'); return }
+  function handlePlanSelect(planKey) {
+    if (planKey === 'free') { navigate(user ? '/dashboard' : '/signup'); return }
     if (user) {
-      await supabase.from('profiles').update({ plan: planKey }).eq('id', user.id)
-      toast.success(`Switched to ${planKey} plan!`)
-      navigate('/dashboard')
+      navigate(`/upgrade?plan=${planKey}`)
     } else {
       navigate(`/signup?plan=${planKey}`)
     }

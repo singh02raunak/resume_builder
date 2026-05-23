@@ -8,6 +8,7 @@ import Signup from './pages/auth/Signup'
 import Dashboard from './pages/dashboard/Dashboard'
 import ResumeBuilder from './pages/dashboard/ResumeBuilder'
 import CoverLetterBuilder from './pages/dashboard/CoverLetterBuilder'
+import Upgrade from './pages/Upgrade'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/upgrade" element={<Upgrade />} />
 
           {/* Protected dashboard routes */}
           <Route element={<DashboardLayout />}>

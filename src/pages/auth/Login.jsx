@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -9,6 +9,8 @@ import toast from 'react-hot-toast'
 export default function Login() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const next = searchParams.get('next') || '/dashboard'
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ email: '', password: '' })
 
@@ -17,7 +19,7 @@ export default function Login() {
     setLoading(true)
     try {
       await signIn(form.email, form.password)
-      navigate('/dashboard')
+      navigate(next)
     } catch (err) {
       toast.error(err.message || 'Login failed')
     } finally {

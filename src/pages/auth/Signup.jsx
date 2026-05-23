@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const PLAN_LABELS = { starter: 'Starter — ₹2,000', pro: 'Pro — ₹3,000' }
+const PLAN_LABELS = { starter: 'Starter — ₹1', pro: 'Pro — ₹2' }
 
 export default function Signup() {
   const { signUp } = useAuth()
@@ -22,15 +21,13 @@ export default function Signup() {
     if (form.password.length < 6) { toast.error('Password must be at least 6 characters'); return }
     setLoading(true)
     try {
-      const data = await signUp(form.email, form.password, form.fullName)
-      if (planParam && (planParam === 'starter' || planParam === 'pro')) {
-        const userId = data?.user?.id
-        if (userId) {
-          await supabase.from('profiles').update({ plan: planParam }).eq('id', userId)
-        }
-      }
+      await signUp(form.email, form.password, form.fullName)
       toast.success('Account created!')
-      navigate('/dashboard')
+      if (planParam && PLAN_LABELS[planParam]) {
+        navigate(`/upgrade?plan=${planParam}`)
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err) {
       toast.error(err.message || 'Sign up failed')
     } finally {
