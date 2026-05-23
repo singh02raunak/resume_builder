@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { openCashfreeCheckout } from '../lib/cashfree'
-import { FileText, CheckCircle, Loader } from 'lucide-react'
+import { FileText, CheckCircle, Loader, CreditCard, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const PLANS = {
-  starter: { label: 'Starter', price: '₹1', amount: 100, features: ['10 resumes', '10 cover letters', 'ATS score checker', 'Bullet rewriter', 'PDF export'] },
-  pro:     { label: 'Pro',     price: '₹2', amount: 200, features: ['Unlimited resumes', 'Unlimited cover letters', 'ATS score checker', 'Bullet rewriter', 'PDF export'] },
+  starter: { label: 'Starter', price: '₹1', features: ['10 resumes', '10 cover letters', 'ATS score checker', 'Bullet rewriter', 'PDF export'] },
+  pro:     { label: 'Pro',     price: '₹2', features: ['Unlimited resumes', 'Unlimited cover letters', 'ATS score checker', 'Bullet rewriter', 'PDF export'] },
 }
 
 export default function Upgrade() {
@@ -17,58 +16,43 @@ export default function Upgrade() {
   const [searchParams] = useSearchParams()
   const planKey = searchParams.get('plan')
   const plan = PLANS[planKey]
-  const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState('idle') // idle | paying | success | error
+  const [status, setStatus] = useState('idle') // idle | processing | success
+  const [form, setForm] = useState({ card: '', expiry: '', cvv: '', name: '' })
 
   useEffect(() => {
     if (!user) { navigate(`/login?next=/upgrade?plan=${planKey}`); return }
     if (!plan) { navigate('/'); return }
   }, [user, plan])
 
-  async function handlePay() {
-    setLoading(true)
-    setStatus('paying')
+  function formatCard(val) {
+    return val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
+  }
+
+  function formatExpiry(val) {
+    const digits = val.replace(/\D/g, '').slice(0, 4)
+    return digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits
+  }
+
+  async function handlePay(e) {
+    e.preventDefault()
+    setStatus('processing')
     try {
-      // 1. Create order on server
-      const res = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planKey, userId: user.id, userEmail: user.email }),
-      })
-      const { orderId, paymentSessionId, error } = await res.json()
-      if (error) throw new Error(error)
+      // Mock payment — simulates gateway delay
+      await new Promise((res) => setTimeout(res, 2000))
 
-      // 2. Open Cashfree checkout modal
-      await openCashfreeCheckout({ paymentSessionId })
-
-      // 3. Verify payment status on server
-      const verifyRes = await fetch('/api/verify-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId }),
-      })
-      const { verified, error: verifyError } = await verifyRes.json()
-      if (!verified) throw new Error(verifyError || 'Payment verification failed')
-
-      // 4. Activate plan in Supabase
-      const { error: dbError } = await supabase
+      // Activate plan in Supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ plan: planKey })
         .eq('id', user.id)
-      if (dbError) throw dbError
+      if (error) throw error
 
       setStatus('success')
       toast.success(`${plan.label} plan activated!`)
       setTimeout(() => navigate('/dashboard'), 2000)
     } catch (err) {
-      if (err.message === 'cancelled') {
-        setStatus('idle')
-      } else {
-        setStatus('error')
-        toast.error(err.message || 'Payment failed')
-      }
-    } finally {
-      setLoading(false)
+      setStatus('idle')
+      toast.error(err.message || 'Payment failed')
     }
   }
 
@@ -88,42 +72,103 @@ export default function Upgrade() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
           {status === 'success' ? (
-            <div className="text-center py-4">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="font-semibold text-gray-900">Payment successful!</p>
+            <div className="text-center py-6">
+              <CheckCircle className="w-14 h-14 text-green-500 mx-auto mb-3" />
+              <p className="font-semibold text-gray-900 text-lg">Payment successful!</p>
               <p className="text-sm text-gray-500 mt-1">Redirecting to dashboard...</p>
             </div>
           ) : (
             <>
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-4xl font-extrabold text-gray-900">{plan.price}</span>
-                  <span className="text-gray-400 text-sm">one-time</span>
+              {/* Plan summary */}
+              <div className="bg-indigo-50 rounded-xl p-4 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-semibold text-gray-900">{plan.label} Plan</span>
+                  <span className="text-xl font-extrabold text-indigo-600">{plan.price}</span>
                 </div>
-                <ul className="space-y-2.5">
+                <ul className="space-y-1.5">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2.5 text-sm text-gray-600">
-                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
+                      <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                       {f}
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <button
-                onClick={handlePay}
-                disabled={loading}
-                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {loading ? <><Loader className="w-4 h-4 animate-spin" /> Processing...</> : `Pay ${plan.price} & Activate`}
-              </button>
+              {/* Card form */}
+              <form onSubmit={handlePay} className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Name on card</label>
+                  <input
+                    type="text"
+                    placeholder="John Doe"
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Card number</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="4111 1111 1111 1111"
+                      required
+                      value={form.card}
+                      onChange={(e) => setForm({ ...form, card: formatCard(e.target.value) })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 pr-10"
+                    />
+                    <CreditCard className="w-4 h-4 text-gray-400 absolute right-3 top-2.5" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Expiry</label>
+                    <input
+                      type="text"
+                      placeholder="MM/YY"
+                      required
+                      value={form.expiry}
+                      onChange={(e) => setForm({ ...form, expiry: formatExpiry(e.target.value) })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">CVV</label>
+                    <input
+                      type="password"
+                      placeholder="•••"
+                      maxLength={3}
+                      required
+                      value={form.cvv}
+                      onChange={(e) => setForm({ ...form, cvv: e.target.value.replace(/\D/g, '').slice(0, 3) })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={status === 'processing'}
+                  className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  {status === 'processing'
+                    ? <><Loader className="w-4 h-4 animate-spin" /> Processing...</>
+                    : <><Lock className="w-4 h-4" /> Pay {plan.price} & Activate</>}
+                </button>
+              </form>
 
               <button
                 onClick={() => navigate('/')}
-                className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 text-center cursor-pointer"
+                className="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 text-center cursor-pointer"
               >
                 Cancel
               </button>
+
+              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
+                <Lock className="w-3 h-3" /> Secured · Test mode
+              </p>
             </>
           )}
         </div>
