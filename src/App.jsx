@@ -29,6 +29,7 @@ export default function App() {
             <Route path="/cover-letter/:id" element={<CoverLetterBuilder />} />
           </Route>
 
+          <Route path="/pricing" element={<Navigate to="/#pricing" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
