@@ -2,6 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/layout/Navbar'
 import { Button } from '../components/ui/Button'
 import { FileText, Zap, Target, Star, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 
 const features = [
   {
@@ -59,6 +62,18 @@ const plans = [
 
 export default function Landing() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  async function handlePlanSelect(planKey) {
+    if (planKey === 'free') { navigate('/signup'); return }
+    if (user) {
+      await supabase.from('profiles').update({ plan: planKey }).eq('id', user.id)
+      toast.success(`Switched to ${planKey} plan!`)
+      navigate('/dashboard')
+    } else {
+      navigate(`/signup?plan=${planKey}`)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -144,7 +159,7 @@ export default function Landing() {
                   ))}
                 </ul>
                 <button
-                  onClick={() => navigate('/signup')}
+                  onClick={() => handlePlanSelect(plan.name.toLowerCase())}
                   className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                     plan.highlighted
                       ? 'bg-white text-indigo-600 hover:bg-indigo-50'
@@ -165,7 +180,7 @@ export default function Landing() {
           <h2 className="text-3xl font-bold text-white mb-4">Ready to land your next job?</h2>
           <p className="text-indigo-200 mb-8">Join thousands of job seekers who got hired faster with ResumeAI.</p>
           <button
-            onClick={() => navigate('/signup')}
+            onClick={() => handlePlanSelect('free')}
             className="bg-white text-indigo-600 font-semibold px-8 py-3 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer"
           >
             Start Building for Free

@@ -1,27 +1,35 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../../lib/supabase'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+const PLAN_LABELS = { starter: 'Starter — ₹2,000', pro: 'Pro — ₹3,000' }
+
 export default function Signup() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const planParam = searchParams.get('plan')
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ fullName: '', email: '', password: '' })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (form.password.length < 6) {
-      toast.error('Password must be at least 6 characters')
-      return
-    }
+    if (form.password.length < 6) { toast.error('Password must be at least 6 characters'); return }
     setLoading(true)
     try {
-      await signUp(form.email, form.password, form.fullName)
-      toast.success('Account created! Check your email to confirm.')
+      const data = await signUp(form.email, form.password, form.fullName)
+      if (planParam && (planParam === 'starter' || planParam === 'pro')) {
+        const userId = data?.user?.id
+        if (userId) {
+          await supabase.from('profiles').update({ plan: planParam }).eq('id', userId)
+        }
+      }
+      toast.success('Account created!')
       navigate('/dashboard')
     } catch (err) {
       toast.error(err.message || 'Sign up failed')
@@ -39,7 +47,13 @@ export default function Signup() {
             ResumeAI
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-          <p className="text-gray-500 text-sm mt-1">Free forever. No credit card required.</p>
+          {planParam && PLAN_LABELS[planParam] ? (
+            <p className="text-sm mt-1 text-indigo-600 font-medium bg-indigo-50 rounded-lg px-3 py-1.5 inline-block">
+              Selected: {PLAN_LABELS[planParam]}
+            </p>
+          ) : (
+            <p className="text-gray-500 text-sm mt-1">Free forever. No credit card required.</p>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
@@ -69,7 +83,7 @@ export default function Signup() {
               onChange={(e) => setForm({ ...form, password: e.target.value })}
             />
             <Button type="submit" className="w-full" loading={loading}>
-              Create Free Account
+              {planParam && PLAN_LABELS[planParam] ? `Create Account & Activate ${planParam.charAt(0).toUpperCase() + planParam.slice(1)}` : 'Create Free Account'}
             </Button>
           </form>
 
