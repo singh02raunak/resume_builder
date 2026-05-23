@@ -42,7 +42,7 @@ const plans = [
   },
   {
     name: 'Starter',
-    price: '₹2,000',
+    price: '₹1',
     period: 'one-time',
     features: ['10 resumes', '10 cover letters', 'ATS score checker', 'Bullet rewriter', 'PDF export'],
     cta: 'Get Starter',
@@ -50,7 +50,7 @@ const plans = [
   },
   {
     name: 'Pro',
-    price: '₹3,000',
+    price: '₹2',
     period: 'one-time',
     features: ['Unlimited resumes', 'Unlimited cover letters', 'ATS score checker', 'Bullet rewriter', 'PDF export'],
     cta: 'Get Pro',
