@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
-const SESSION_DURATION = 60 * 60 * 1000 // 1 hour in ms
+const SESSION_DURATION = 2 * 60 * 60 * 1000 // 2 hours in ms
 const SESSION_START_KEY = 'session_start'
 
 export function AuthProvider({ children }) {
