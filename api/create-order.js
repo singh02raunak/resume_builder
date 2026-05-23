@@ -1,33 +1,46 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { plan } = req.body
-  const amounts = { starter: 100, pro: 200 } // paise: ₹1 = 100, ₹2 = 200
+  const { plan, userId, userEmail } = req.body
+  const amounts = { starter: 1, pro: 2 } // ₹1 and ₹2 for testing
 
   if (!amounts[plan]) return res.status(400).json({ error: 'Invalid plan' })
 
-  const key_id = process.env.RAZORPAY_KEY_ID
-  const key_secret = process.env.RAZORPAY_KEY_SECRET
+  const isSandbox = process.env.CASHFREE_ENV !== 'production'
+  const baseUrl = isSandbox
+    ? 'https://sandbox.cashfree.com/pg'
+    : 'https://api.cashfree.com/pg'
+
+  const orderId = `order_${plan}_${Date.now()}`
 
   try {
-    const response = await fetch('https://api.razorpay.com/v1/orders', {
+    const response = await fetch(`${baseUrl}/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: 'Basic ' + btoa(`${key_id}:${key_secret}`),
+        'x-api-version': '2023-08-01',
+        'x-client-id': process.env.CASHFREE_APP_ID,
+        'x-client-secret': process.env.CASHFREE_SECRET_KEY,
       },
       body: JSON.stringify({
-        amount: amounts[plan],
-        currency: 'INR',
-        receipt: `receipt_${plan}_${Date.now()}`,
-        notes: { plan },
+        order_id: orderId,
+        order_amount: amounts[plan],
+        order_currency: 'INR',
+        customer_details: {
+          customer_id: userId || 'guest',
+          customer_email: userEmail || 'test@example.com',
+          customer_phone: '9999999999',
+        },
       }),
     })
 
     const order = await response.json()
-    if (!response.ok) throw new Error(order.error?.description || 'Order creation failed')
+    if (!response.ok) throw new Error(order.message || 'Order creation failed')
 
-    res.status(200).json({ orderId: order.id, amount: order.amount, currency: order.currency })
+    res.status(200).json({
+      orderId: order.order_id,
+      paymentSessionId: order.payment_session_id,
+    })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

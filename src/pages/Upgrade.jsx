@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { openRazorpayCheckout } from '../lib/razorpay'
+import { openCashfreeCheckout } from '../lib/cashfree'
 import { FileText, CheckCircle, Loader } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -33,23 +33,19 @@ export default function Upgrade() {
       const res = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planKey }),
+        body: JSON.stringify({ plan: planKey, userId: user.id, userEmail: user.email }),
       })
-      const { orderId, amount, currency, error } = await res.json()
+      const { orderId, paymentSessionId, error } = await res.json()
       if (error) throw new Error(error)
 
-      // 2. Open Razorpay checkout
-      const payment = await openRazorpayCheckout({
-        orderId, amount, currency, planKey,
-        userEmail: user.email,
-        userName: user.user_metadata?.full_name || '',
-      })
+      // 2. Open Cashfree checkout modal
+      await openCashfreeCheckout({ paymentSessionId })
 
-      // 3. Verify signature on server
+      // 3. Verify payment status on server
       const verifyRes = await fetch('/api/verify-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payment),
+        body: JSON.stringify({ orderId }),
       })
       const { verified, error: verifyError } = await verifyRes.json()
       if (!verified) throw new Error(verifyError || 'Payment verification failed')
